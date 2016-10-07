@@ -1468,6 +1468,7 @@ BUILT_IN_TESTS = [
   'gc',
   'debugger',
   'doctool',
+  'inspector',
 ]
 
 
