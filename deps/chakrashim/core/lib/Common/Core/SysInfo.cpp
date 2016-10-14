@@ -220,7 +220,11 @@ AutoSystemInfo::SSE2Available() const
 #if defined(_M_X64) || defined(_M_ARM32_OR_ARM64)
     return true;
 #elif defined(_M_IX86)
+#if defined(_WIN32)
     return VirtualSseAvailable(2) && (CPUInfo[3] & (1 << 26));
+#else
+    return false; // TODO: xplat support
+#endif
 #else
     #error Unsupported platform.
 #endif
@@ -239,6 +243,13 @@ AutoSystemInfo::SSE4_1Available() const
 {
     Assert(initialized);
     return VirtualSseAvailable(4) && (CPUInfo[2] & (0x1 << 19));
+}
+
+BOOL
+AutoSystemInfo::SSE4_2Available() const
+{
+    Assert(initialized);
+    return VirtualSseAvailable(4) && (CPUInfo[2] & (0x1 << 20));
 }
 
 BOOL

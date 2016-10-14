@@ -51,7 +51,7 @@ namespace Js
 
     namespace ArrayBufferView
     {
-        enum ViewType
+        enum ViewType: int
         {
             TYPE_INT8 = 0,
             TYPE_UINT8,
@@ -66,7 +66,7 @@ namespace Js
 
     } /* namespace ArrayBufferView */
     // The asm.js spec recognizes this set of builtin Math functions.
-    enum AsmJSMathBuiltinFunction
+    enum AsmJSMathBuiltinFunction: int
     {
 #define ASMJS_MATH_FUNC_NAMES(name, propertyName) AsmJSMathBuiltin_##name,
 #include "AsmJsBuiltInNames.h"
@@ -699,7 +699,7 @@ namespace Js
         {
             if( !mConstMap.ContainsKey( val ) )
             {
-                mConstMap.Add( val, AcquireConstRegister() );
+                mConstMap.Add( val, this->AcquireConstRegister() );
             }
         }
 
@@ -1130,12 +1130,6 @@ namespace Js
         void SetArgTypeArray(AsmJsVarType::Which* val)
         {
             mArgType = val;
-        }
-
-        inline bool AccessNeedsBoundCheck(uint offset) const
-        {
-            // Normally, heap has min size of 0x10000, but if you use ChangeHeap, min heap size is increased to 0x1000000
-            return offset >= 0x1000000 || (IsHeapBufferConst() && offset >= 0x10000);
         }
 
     };
