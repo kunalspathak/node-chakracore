@@ -11,10 +11,9 @@
     'linker_end_group%': '',
     'chakra_libs_absolute%': '',
     'icu_lib_path%': '',
-    'chakra_build_flags': '',
 
     # xplat (non-win32) only
-    'chakra_config': 'Release',     # Debug, Release
+    'chakra_config': 'Debug',     # Debug, Release
 
     'conditions': [
       ['target_arch=="ia32"', { 'Platform': 'x86' }],
@@ -33,11 +32,11 @@
       # node compiles both release and debug on `debug` mode.
       # ChakraCore ends-up overwriting the previous build cache
       # xplat (non-win32) only
-      # ['chakra_config=="Debug"', {
-      #   'chakra_build_flags': [ '-d' ],
-      # }, {
-      #   'chakra_build_flags': [],
-      # }],
+      ['chakra_config=="Debug"', {
+        'chakra_build_flags': [ '-d' ],
+      }, {
+        'chakra_build_flags': [],
+      }],
     ],
   },
 
