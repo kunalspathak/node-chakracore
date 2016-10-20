@@ -11,6 +11,7 @@
 #include <strsafe.h>
 #endif
 
+#include "Codex/Utf8Codex.h"
 #include "Memory/MemoryLogger.h"
 #include "Memory/ForcedMemoryConstraints.h"
 #include "Core/ICustomConfigFlags.h"
@@ -310,7 +311,8 @@ void ConfigParser::ParseRegistryKey(HKEY hk, CmdLineArgsParser &parser)
 
 void ConfigParser::ParseConfig(HANDLE hmod, CmdLineArgsParser &parser)
 {
-#if defined(ENABLE_DEBUG_CONFIG_OPTIONS) && CONFIG_PARSE_CONFIG_FILE
+#if defined(ENABLE_DEBUG_CONFIG_OPTIONS)
+
     Assert(!_hasReadConfig);
     _hasReadConfig = true;
 
@@ -322,11 +324,12 @@ void ConfigParser::ParseConfig(HANDLE hmod, CmdLineArgsParser &parser)
     GetModuleFileName((HMODULE)hmod, modulename, _MAX_PATH);
     char16 drive[_MAX_DRIVE];
     char16 dir[_MAX_DIR];
-
+    FILE* configFile;
+#ifdef _WIN32
     _wsplitpath_s(modulename, drive, _MAX_DRIVE, dir, _MAX_DIR, nullptr, 0, nullptr, 0);
     _wmakepath_s(filename, drive, dir, _configFileName, _u(".config"));
 
-    FILE* configFile;
+    
     if (_wfopen_s(&configFile, filename, _u("r, ccs=UNICODE")) != 0 || configFile == nullptr)
     {
         WCHAR configFileFullName[MAX_PATH];
@@ -344,6 +347,7 @@ void ConfigParser::ParseConfig(HANDLE hmod, CmdLineArgsParser &parser)
         }
     }
 
+
     while (fwscanf_s(configFile, _u("%s"), configBuffer, MaxTokenSize) != FINISHED)
     {
         if ((err = parser.Parse(configBuffer)) != 0)
@@ -357,6 +361,44 @@ void ConfigParser::ParseConfig(HANDLE hmod, CmdLineArgsParser &parser)
     {
         return;
     }
+#else
+    int exitCode = fopen_s(&configFile, "/home/ddccstemp/kpathak-git/node-chakracore/out/Debug/jscript.config", "r") ;
+    if(exitCode != 0){
+        return;
+    }
+    //while (swscanf_s(configFile, _u("%s"), configBuffer, MaxTokenSize) != FINISHED)
+    // while (swscanf(configBuffer, _u("%s"), MaxTokenSize, configFile) != FINISHED)
+    char configBuffer8[4000];
+    if (fread(configBuffer8, sizeof(char), 4000, configFile) != FINISHED)    
+    {
+        char switches[MaxTokenSize];
+        char16 switches16[MaxTokenSize];
+        
+        size_t switchLength;
+        char *pBuffer = configBuffer8;
+        while ((switchLength = sscanf(pBuffer, "%s", switches)) != FINISHED)
+        {
+            utf8::DecodeInto(switches16, (LPCUTF8)switches, MaxTokenSize);
+            if ((err = parser.Parse(switches16)) != 0)
+            {
+                break;
+            }
+            bool shouldBreak = false;
+            while(*pBuffer != ' ')
+            {
+                if(*pBuffer == '\n') {
+                    shouldBreak = true;
+                }
+                pBuffer++;
+            }
+            if(shouldBreak){
+                break;
+            }
+            pBuffer++;
+        }
+    }
+#endif  
+  
 #endif
 }
 
