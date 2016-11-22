@@ -1533,6 +1533,7 @@ BUILT_IN_TESTS = [
   'debugger',
   'doctool',
   'inspector',
+  'async-hooks',
 ]
 
 
