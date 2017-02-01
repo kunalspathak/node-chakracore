@@ -12,8 +12,9 @@
 #include "util-inl.h"
 #include "v8.h"
 
-#include <stdlib.h>  // free()
-#include <string.h>  // strdup()
+#include <stdlib.h>   // free()
+#include <string.h>   // strdup()
+#include <algorithm>  // sort(), lower_bound()
 
 // This is a binding to http_parser (https://github.com/joyent/http-parser)
 // The goal is to decouple sockets from parsing for more javascript-level
@@ -51,7 +52,39 @@ const uint32_t kOnHeadersComplete = 1;
 const uint32_t kOnBody = 2;
 const uint32_t kOnMessageComplete = 3;
 const uint32_t kOnExecute = 4;
+const uint32_t kKnownHttpHeaderFields = 5;
 
+struct knownHttpHeader {
+  std::string headerName;
+  std::string lowerCaseHeaderName;
+  byte flag;
+  int index;
+  knownHttpHeader() {}
+
+  knownHttpHeader(std::string _headerName, std::string _lowerCaseHeaderName,
+                  byte _flag)
+    :headerName(_headerName), lowerCaseHeaderName(_lowerCaseHeaderName),
+    flag(_flag), index(0)
+  {}
+};
+
+
+auto lowerCaseComparison = [](const knownHttpHeader left,
+                              const knownHttpHeader right) {
+  return left.lowerCaseHeaderName < right.lowerCaseHeaderName;
+};
+
+auto originalCaseComparison = [](const knownHttpHeader left,
+                                 const knownHttpHeader right) {
+  return left.headerName < right.headerName;
+};
+
+std::vector<knownHttpHeader> knownHttpHeadersList = {
+#define XX(headerName, lowerCaseHeaderName, flag) \
+  knownHttpHeader(#headerName, #lowerCaseHeaderName, flag),
+  HTTP_HEADER_MAP(XX)
+#undef XX
+};
 
 #define HTTP_CB(name)                                                         \
   static int name(http_parser* p_) {                                          \
@@ -639,27 +672,96 @@ class Parser : public AsyncWrap {
   }
 
   Local<Array> CreateHeaders() {
+    Local<Array> headersLookup =
+      Local<Array>::Cast(object()->Get(kKnownHttpHeaderFields));
+
     Local<Array> headers = Array::New(env()->isolate());
     Local<Function> fn = env()->push_values_to_array_function();
-    Local<Value> argv[NODE_PUSH_VAL_TO_ARRAY_MAX * 2];
+    Local<Value> argv[NODE_PUSH_VAL_TO_ARRAY_MAX * 4];
     size_t i = 0;
-
+    std::vector<Local<Value>> headerData;
     do {
       size_t j = 0;
-      while (i < num_values_ && j < arraysize(argv) / 2) {
-        argv[j * 2] = fields_[i].ToString(env());
-        argv[j * 2 + 1] = values_[i].ToString(env());
+      while (i < num_values_ && j < arraysize(argv) / 4) {
+        headerData = GetKnownHeader(headersLookup, fields_[i]);
+        argv[j * 4] = headerData[0];      // header field name
+        argv[j * 4 + 1] = values_[i].ToString(env());
+        argv[j * 4 + 2] = headerData[1];  // lowercase header field name
+        argv[j * 4 + 3] = headerData[2];  // flag
         i++;
         j++;
       }
       if (j > 0) {
-        fn->Call(env()->context(), headers, j * 2, argv).ToLocalChecked();
+        fn->Call(env()->context(), headers, j * 4, argv).ToLocalChecked();
       }
     } while (i < num_values_);
 
     return headers;
   }
 
+  std::vector<Local<Value>> GetKnownHeader(Local<Array> headersLookup,
+                                           StringPtr field) {
+    Local<Value> flagValue, rawHeaderName, lowercaseHeaderName;
+    std::vector<Local<Value>> headersDataResult;
+    std::string fieldName(field.str_, field.size_);
+
+    knownHttpHeader httpFieldToFind;
+    httpFieldToFind.headerName = fieldName;
+
+    Local<Array> headerEntry;
+
+    // lower_bound finds element in log(N), nowever there is
+    // an extra comparison involved to make sure element found
+    // is the one we are looking for. Unfortunately binary_search
+    // just returns bool but here we need the actual entry.
+    auto headerFound = std::lower_bound(
+      knownHttpHeadersList.begin(), knownHttpHeadersList.end(),
+      httpFieldToFind, originalCaseComparison);
+
+    if (headerFound != knownHttpHeadersList.end() &&
+        headerFound->headerName == httpFieldToFind.headerName) {
+      // found traditional-cased header
+      headerEntry = Local<Array>::Cast(headersLookup->Get(headerFound->index));
+      rawHeaderName = headerEntry->Get(0);
+      lowercaseHeaderName = headerEntry->Get(1);
+      flagValue = headerEntry->Get(2);
+    } else {
+      // check if lower-case header matches
+      rawHeaderName = field.ToString(env());
+      httpFieldToFind.lowerCaseHeaderName = StringToLower(fieldName);
+
+      headerFound = std::lower_bound(
+        knownHttpHeadersList.begin(), knownHttpHeadersList.end(),
+        httpFieldToFind, lowerCaseComparison);
+
+      if (headerFound != knownHttpHeadersList.end() &&
+          headerFound->lowerCaseHeaderName ==
+          httpFieldToFind.lowerCaseHeaderName) {
+        // found lower-case header
+        headerEntry = Local<Array>::Cast(
+          headersLookup->Get(headerFound->index));
+        lowercaseHeaderName = headerEntry->Get(1);
+        flagValue = headerEntry->Get(2);
+      } else {
+        // just convert the header to lower case and use it with default flag=0
+        lowercaseHeaderName = node::OneByteString(
+          env()->isolate(),
+          httpFieldToFind.lowerCaseHeaderName.data(),
+          httpFieldToFind.lowerCaseHeaderName.length());
+        flagValue = Integer::New(env()->isolate(), 0);
+      }
+    }
+
+    ASSERT_EQ(rawHeaderName.IsEmpty(), false);
+    ASSERT_EQ(lowercaseHeaderName.IsEmpty(), false);
+    ASSERT_EQ(flagValue.IsEmpty(), false);
+
+    headersDataResult.push_back(rawHeaderName);
+    headersDataResult.push_back(lowercaseHeaderName);
+    headersDataResult.push_back(flagValue);
+
+    return headersDataResult;
+  }
 
   // spill headers and request path to JS land
   void Flush() {
@@ -755,6 +857,9 @@ void InitHttpParser(Local<Object> target,
          Integer::NewFromUnsigned(env->isolate(), kOnMessageComplete));
   t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kOnExecute"),
          Integer::NewFromUnsigned(env->isolate(), kOnExecute));
+  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kKnownHttpHeaderFields"),
+         Integer::NewFromUnsigned(env->isolate(), kKnownHttpHeaderFields));
+
 
   Local<Array> methods = Array::New(env->isolate());
 #define V(num, name, string)                                                  \
@@ -762,6 +867,39 @@ void InitHttpParser(Local<Object> target,
   HTTP_METHOD_MAP(V)
 #undef V
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "methods"), methods);
+
+  Local<Array> knownHttpHeaders = Array::New(env->isolate());
+
+  std::sort(knownHttpHeadersList.begin(), knownHttpHeadersList.end(),
+            [](knownHttpHeader &left,
+               knownHttpHeader &right) {
+    return left.headerName < right.headerName;
+  });
+
+  for (int i = 0; i < knownHttpHeadersList.size(); i++) {
+    knownHttpHeader & knownHttpHeader = knownHttpHeadersList[i];
+    Local<Array> headerEntry = Array::New(env->isolate());
+
+    headerEntry->Set(0,
+                     node::OneByteString(
+                       env->isolate(),
+                       knownHttpHeader.headerName.data(),
+                       knownHttpHeader.headerName.length()));
+
+    headerEntry->Set(1,
+                     node::OneByteString(
+                       env->isolate(),
+                       knownHttpHeader.lowerCaseHeaderName.data(),
+                       knownHttpHeader.lowerCaseHeaderName.length()));
+
+    headerEntry->Set(2, Integer::New(env->isolate(), knownHttpHeader.flag));
+
+    knownHttpHeader.index = i;
+    knownHttpHeaders->Set(i, headerEntry);
+  }
+
+  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "knownHttpHeaders"),
+              knownHttpHeaders);
 
   env->SetProtoMethod(t, "close", Parser::Close);
   env->SetProtoMethod(t, "execute", Parser::Execute);

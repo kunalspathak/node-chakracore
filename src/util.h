@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <algorithm>    // std::transform
 #include <type_traits>  // std::remove_reference
 
 namespace node {
@@ -258,6 +259,8 @@ inline TypeName* Unwrap(v8::Local<v8::Object> object);
 inline void SwapBytes16(char* data, size_t nbytes);
 inline void SwapBytes32(char* data, size_t nbytes);
 inline void SwapBytes64(char* data, size_t nbytes);
+
+inline std::string StringToLower(std::string str);
 
 // tolower() is locale-sensitive.  Use ToLower() instead.
 inline char ToLower(char c);

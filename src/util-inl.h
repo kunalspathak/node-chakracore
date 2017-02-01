@@ -296,6 +296,11 @@ void SwapBytes64(char* data, size_t nbytes) {
   }
 }
 
+std::string StringToLower(std::string str) {
+  std::transform(str.begin(), str.end(), str.begin(), ToLower);
+  return str;
+}
+
 char ToLower(char c) {
   return c >= 'A' && c <= 'Z' ? c + ('a' - 'A') : c;
 }
