@@ -52,7 +52,6 @@ const uint32_t kOnHeadersComplete = 1;
 const uint32_t kOnBody = 2;
 const uint32_t kOnMessageComplete = 3;
 const uint32_t kOnExecute = 4;
-const uint32_t kKnownHttpHeaderFields = 5;
 
 struct knownHttpHeader {
   std::string headerName;
@@ -673,7 +672,7 @@ class Parser : public AsyncWrap {
 
   Local<Array> CreateHeaders() {
     Local<Array> headersLookup =
-      Local<Array>::Cast(object()->Get(kKnownHttpHeaderFields));
+      Local<Array>::Cast(object()->Get(env()->knownHttpHeaders_string()));
 
     Local<Array> headers = Array::New(env()->isolate());
     Local<Function> fn = env()->push_values_to_array_function();
@@ -857,9 +856,6 @@ void InitHttpParser(Local<Object> target,
          Integer::NewFromUnsigned(env->isolate(), kOnMessageComplete));
   t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kOnExecute"),
          Integer::NewFromUnsigned(env->isolate(), kOnExecute));
-  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kKnownHttpHeaderFields"),
-         Integer::NewFromUnsigned(env->isolate(), kKnownHttpHeaderFields));
-
 
   Local<Array> methods = Array::New(env->isolate());
 #define V(num, name, string)                                                  \
@@ -898,8 +894,7 @@ void InitHttpParser(Local<Object> target,
     knownHttpHeaders->Set(i, headerEntry);
   }
 
-  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "knownHttpHeaders"),
-              knownHttpHeaders);
+  target->Set(env->knownHttpHeaders_string(),knownHttpHeaders);
 
   env->SetProtoMethod(t, "close", Parser::Close);
   env->SetProtoMethod(t, "execute", Parser::Execute);

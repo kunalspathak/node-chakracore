@@ -297,7 +297,9 @@ void SwapBytes64(char* data, size_t nbytes) {
 }
 
 std::string StringToLower(std::string str) {
-  std::transform(str.begin(), str.end(), str.begin(), ToLower);
+  for (int i = 0;i < str.length();i++) {
+    str[i] = ToLower(str[i]);
+  }
   return str;
 }
 
