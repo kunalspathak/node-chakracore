@@ -864,7 +864,7 @@ void InitHttpParser(Local<Object> target,
 #undef V
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "methods"), methods);
 
-  Local<Array> knownHttpHeaders = Array::New(env->isolate());
+  Local<Array> knownHttpHeaders = Array::New(env->isolate(), knownHttpHeadersList.size());
 
   std::sort(knownHttpHeadersList.begin(), knownHttpHeadersList.end(),
             [](knownHttpHeader &left,
@@ -874,7 +874,7 @@ void InitHttpParser(Local<Object> target,
 
   for (int i = 0; i < knownHttpHeadersList.size(); i++) {
     knownHttpHeader & knownHttpHeader = knownHttpHeadersList[i];
-    Local<Array> headerEntry = Array::New(env->isolate());
+    Local<Array> headerEntry = Array::New(env->isolate(), 3);
 
     headerEntry->Set(0,
                      node::OneByteString(
