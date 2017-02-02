@@ -217,7 +217,9 @@ enum http_method
 //  1 = header values are pushed to array
 //  2 = header values are joined with ', '
 #define HTTP_HEADER_MAP(XX)                           \
-  XX(Transfer-Encoding,   transfer-encoding,      0)  \
+  XX(Host,                host,                   2)  \
+
+ /* XX(Transfer-Encoding,   transfer-encoding,      0)  \
   XX(Date,                date,                   0)  \
   XX(Cache-Control,       cache-control,          0)  \
   XX(Connection,          connection,             0)  \
@@ -239,21 +241,20 @@ enum http_method
   XX(Content-Type,        content-type,           2)  \
   XX(Content-Length,      content-length,         2)  \
   XX(User-Agent,          user-agent,             2)  \
-  XX(Referer,             referer,                2)  \
-  XX(Host,                host,                   2)  \
-  XX(Authorization,       authorization,          2)  \
-  XX(Proxy-Authorization, proxy-authorization,    2)  \
-  XX(If-Modified-Since,   if-modified-since,      2)  \
-  XX(If-Unmodified-Since, if-unmodified-since,    2)  \
-  XX(From,                from,                   2)  \
-  XX(Location,            location,               2)  \
-  XX(Max-Forwards,        max-forwards,           2)  \
-  XX(Retry-After,         retry-after,            2)  \
-  XX(ETag,                etag,                   2)  \
-  XX(Last-Modified,       last-modified,          2)  \
-  XX(Server,              server,                 2)  \
-  XX(Age,                 age,                    2)  \
-  XX(Expires,             expires,                2)  \
+  XX(Referer,             referer,                2)  \*/
+  //XX(Authorization,       authorization,          2)  \
+  //XX(Proxy-Authorization, proxy-authorization,    2)  \
+  //XX(If-Modified-Since,   if-modified-since,      2)  \
+  //XX(If-Unmodified-Since, if-unmodified-since,    2)  \
+  //XX(From,                from,                   2)  \
+  //XX(Location,            location,               2)  \
+  //XX(Max-Forwards,        max-forwards,           2)  \
+  //XX(Retry-After,         retry-after,            2)  \
+  //XX(ETag,                etag,                   2)  \
+  //XX(Last-Modified,       last-modified,          2)  \
+  //XX(Server,              server,                 2)  \
+  //XX(Age,                 age,                    2)  \
+  //XX(Expires,             expires,                2)  \
 
 enum http_parser_type { HTTP_REQUEST, HTTP_RESPONSE, HTTP_BOTH };
 

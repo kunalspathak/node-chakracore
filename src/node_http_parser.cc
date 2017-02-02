@@ -701,7 +701,7 @@ class Parser : public AsyncWrap {
   std::vector<Local<Value>> GetKnownHeader(Local<Array> headersLookup,
                                            StringPtr field) {
     Local<Value> flagValue, rawHeaderName, lowercaseHeaderName;
-    std::vector<Local<Value>> headersDataResult;
+    std::vector<Local<Value>> headersDataResult(3);
     std::string fieldName(field.str_, field.size_);
 
     knownHttpHeader httpFieldToFind;
@@ -755,9 +755,9 @@ class Parser : public AsyncWrap {
     ASSERT_EQ(lowercaseHeaderName.IsEmpty(), false);
     ASSERT_EQ(flagValue.IsEmpty(), false);
 
-    headersDataResult.push_back(rawHeaderName);
-    headersDataResult.push_back(lowercaseHeaderName);
-    headersDataResult.push_back(flagValue);
+    headersDataResult[0] = rawHeaderName;
+    headersDataResult[1] = lowercaseHeaderName;
+    headersDataResult[2] = flagValue;
 
     return headersDataResult;
   }
