@@ -14,6 +14,7 @@
 
 #include <stdlib.h>  // free()
 #include <string.h>  // strdup()
+#include <unordered_map>
 
 // This is a binding to http_parser (https://github.com/joyent/http-parser)
 // The goal is to decouple sockets from parsing for more javascript-level
@@ -68,6 +69,8 @@ const uint32_t kOnExecute = 4;
   }                                                                           \
   int name##_(const char* at, size_t length)
 
+// map that stores hashcode of HTTP fields to index in JSArray
+std::unordered_map<size_t, int> knownHttpHeadersMap;
 
 // helper class for the Parser
 struct StringPtr {
@@ -647,7 +650,7 @@ class Parser : public AsyncWrap {
     do {
       size_t j = 0;
       while (i < num_values_ && j < arraysize(argv) / 2) {
-        argv[j * 2] = fields_[i].ToString(env());
+        argv[j * 2] = GetKnownHeader(fields_[i]);
         argv[j * 2 + 1] = values_[i].ToString(env());
         i++;
         j++;
@@ -658,6 +661,16 @@ class Parser : public AsyncWrap {
     } while (i < num_values_);
 
     return headers;
+  }
+
+  Local<Value> GetKnownHeader(StringPtr field) {
+    size_t hashCode = GetHashCode(field.str_, field.size_);
+    auto found = knownHttpHeadersMap.find(hashCode);
+    if (found == knownHttpHeadersMap.end()) {
+      return field.ToString(env());
+    } else {
+      return Local<Value>::Cast(Integer::New(env()->isolate(), found->second));
+    }
   }
 
 
@@ -762,6 +775,18 @@ void InitHttpParser(Local<Object> target,
   HTTP_METHOD_MAP(V)
 #undef V
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "methods"), methods);
+
+  Local<Array> knownHttpHeaders = Array::New(env->isolate());
+
+  int index = 0;
+#define XX(headerName, lowerCaseHeaderName, flag) \
+  knownHttpHeadersMap[GetHashCode(#headerName, strlen(#headerName))] = index; \
+  knownHttpHeaders->Set(index++, FIXED_ONE_BYTE_STRING(env->isolate(), #headerName));
+    HTTP_HEADER_MAP(XX)
+#undef XX
+  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "knownHttpHeaders"),
+              knownHttpHeaders);
+
 
   env->SetProtoMethod(t, "close", Parser::Close);
   env->SetProtoMethod(t, "execute", Parser::Execute);

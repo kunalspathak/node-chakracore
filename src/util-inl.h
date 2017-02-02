@@ -328,6 +328,18 @@ inline size_t MultiplyWithOverflowCheck(size_t a, size_t b) {
   return ret;
 }
 
+// DJB2 hash function taken from http://www.cse.yorku.ca/~oz/hash.html
+inline size_t GetHashCode(const char *str, size_t len) {
+  size_t hash = 5381, i = 0;
+  int c;
+
+  while ((i++ < len) && (c = *str++)) {
+    hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+  }
+
+  return hash;
+}
+
 // These should be used in our code as opposed to the native
 // versions as they abstract out some platform and or
 // compiler version specific functionality.
