@@ -489,6 +489,10 @@ private:
     BVSparse<HeapAllocator> * m_jitNumericProperties;
     bool m_jitNeedsPropertyUpdate;
 public:
+    intptr_t GetPreReservedRegionAddr()
+    {
+        return m_prereservedRegionAddr;
+    }
     BVSparse<HeapAllocator> * GetJITNumericProperties() const
     {
         return m_jitNumericProperties;
@@ -515,6 +519,7 @@ public:
 private:
     typedef JsUtil::BaseDictionary<uint, Js::SourceDynamicProfileManager*, Recycler, PowerOf2SizePolicy> SourceDynamicProfileManagerMap;
     typedef JsUtil::BaseDictionary<const char16*, const Js::PropertyRecord*, Recycler, PowerOf2SizePolicy> SymbolRegistrationMap;
+
 
     class SourceDynamicProfileManagerCache
     {
@@ -813,8 +818,6 @@ private:
 
     NativeLibraryEntryRecord nativeLibraryEntry;
 
-    UCrtC99MathApis ucrtC99MathApis;
-
     // Indicates the current loop depth as observed by the interpreter. The interpreter causes this value to be updated upon
     // entering and leaving a loop.
     uint8 loopDepth;
@@ -847,8 +850,6 @@ public:
 #endif // ENABLE_NATIVE_CODEGEN
 
     CriticalSection* GetEtwRundownCriticalSection() { return &csEtwRundown; }
-
-    UCrtC99MathApis* GetUCrtC99MathApis() { return &ucrtC99MathApis; }
 
     Js::IsConcatSpreadableCache* GetIsConcatSpreadableCache() { return &isConcatSpreadableCache; }
 
@@ -1180,7 +1181,8 @@ public:
     void RegisterCodeGenRecyclableData(Js::CodeGenRecyclableData *const codeGenRecyclableData);
     void UnregisterCodeGenRecyclableData(Js::CodeGenRecyclableData *const codeGenRecyclableData);
 #if ENABLE_NATIVE_CODEGEN
-    BOOL IsNativeAddress(void * pCodeAddr);
+    bool IsNativeAddressHelper(void * pCodeAddr, Js::ScriptContext* currentScriptContext);
+    BOOL IsNativeAddress(void * pCodeAddr, Js::ScriptContext* currentScriptContext = nullptr);
     JsUtil::JobProcessor *GetJobProcessor();
     Js::Var * GetBailOutRegisterSaveSpace() const { return bailOutRegisterSaveSpace; }
     virtual intptr_t GetBailOutRegisterSaveSpaceAddr() const override { return (intptr_t)bailOutRegisterSaveSpace; }

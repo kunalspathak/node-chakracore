@@ -1971,7 +1971,8 @@ ThreadContext::EnsureJITThreadContext(bool allowPrereserveAlloc)
     contextData.processHandle = (intptr_t)jitTargetHandle;
 
     contextData.chakraBaseAddress = (intptr_t)AutoSystemInfo::Data.GetChakraBaseAddr();
-    contextData.crtBaseAddress = (intptr_t)GetModuleHandle(UCrtC99MathApis::LibraryName);
+    ucrtC99MathApis.Ensure();
+    contextData.crtBaseAddress = (intptr_t)ucrtC99MathApis.GetHandle();
     contextData.threadStackLimitAddr = reinterpret_cast<intptr_t>(GetAddressOfStackLimitForCurrentThread());
     contextData.bailOutRegisterSaveSpaceAddr = (intptr_t)bailOutRegisterSaveSpace;
     contextData.disableImplicitFlagsAddr = (intptr_t)GetAddressOfDisableImplicitFlags();
@@ -4080,7 +4081,26 @@ void DumpRecyclerObjectGraph()
 #endif
 
 #if ENABLE_NATIVE_CODEGEN
-BOOL ThreadContext::IsNativeAddress(void * pCodeAddr)
+bool ThreadContext::IsNativeAddressHelper(void * pCodeAddr, Js::ScriptContext* currentScriptContext)
+{
+    bool isNativeAddr = false;
+    if (currentScriptContext && currentScriptContext->GetJitFuncRangeCache() != nullptr)
+    {
+        isNativeAddr = currentScriptContext->GetJitFuncRangeCache()->IsNativeAddr(pCodeAddr);
+    }
+
+    for (Js::ScriptContext *scriptContext = scriptContextList; scriptContext && !isNativeAddr; scriptContext = scriptContext->next)
+    {
+        if (scriptContext == currentScriptContext || scriptContext->GetJitFuncRangeCache() == nullptr)
+        {
+            continue;
+        }
+        isNativeAddr = scriptContext->GetJitFuncRangeCache()->IsNativeAddr(pCodeAddr);
+    }
+    return isNativeAddr;
+}
+
+BOOL ThreadContext::IsNativeAddress(void * pCodeAddr, Js::ScriptContext* currentScriptContext)
 {
 #if ENABLE_OOP_NATIVE_CODEGEN
     if (JITManager::GetJITManager()->IsOOPJITEnabled())
@@ -4098,10 +4118,16 @@ BOOL ThreadContext::IsNativeAddress(void * pCodeAddr)
             return false;
         }
 
+#if DBG
         boolean result;
         HRESULT hr = JITManager::GetJITManager()->IsNativeAddr(this->m_remoteThreadContextInfo, (intptr_t)pCodeAddr, &result);
         JITManager::HandleServerCallResult(hr, RemoteCallType::HeapQuery);
-        return result;
+#endif
+        bool isNativeAddr = IsNativeAddressHelper(pCodeAddr, currentScriptContext);
+#if DBG
+        Assert(result == (isNativeAddr? TRUE:FALSE));
+#endif
+        return isNativeAddr;
     }
     else
 #endif
@@ -4114,8 +4140,14 @@ BOOL ThreadContext::IsNativeAddress(void * pCodeAddr)
 
         if (!this->IsAllJITCodeInPreReservedRegion())
         {
+#if DBG
             AutoCriticalSection autoLock(&this->codePageAllocators.cs);
-            return this->codePageAllocators.IsInNonPreReservedPageAllocator(pCodeAddr);
+#endif
+            bool isNativeAddr = IsNativeAddressHelper(pCodeAddr, currentScriptContext);
+#if DBG
+            Assert(this->codePageAllocators.IsInNonPreReservedPageAllocator(pCodeAddr) == isNativeAddr);
+#endif
+            return isNativeAddr;
         }
         return FALSE;
     }
