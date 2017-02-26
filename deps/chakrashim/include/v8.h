@@ -1135,6 +1135,8 @@ class V8_EXPORT String : public Name {
     virtual ~ExternalOneByteStringResource() {}
     virtual const char *data() const = 0;
     virtual size_t length() const = 0;
+
+  protected:
     virtual void Dispose() { delete this; }
   };
 

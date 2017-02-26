@@ -18,7 +18,8 @@
       'include_dirs': [
         'include',
         '<(SHARED_INTERMEDIATE_DIR)',
-        './../uv/include'
+        './../uv/include',
+        './../../src' # node.h
       ],
       'defines': [
         'BUILDING_CHAKRASHIM=1',
@@ -142,6 +143,7 @@
       'actions': [
         {
           'action_name': 'chakra_js2c',
+          'process_outputs_as_sources': 1,
           'inputs': [
             '<@(library_files)'
           ],

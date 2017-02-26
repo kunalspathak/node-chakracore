@@ -171,8 +171,9 @@ TEMPLATE = """
 #include "env.h"
 #include "env-inl.h"
 
-namespace {namespace} {{
+namespace node {{
 
+// This is definitions = kunal
 {definitions}
 
 v8::Local<v8::String> MainSource(Environment* env) {{
@@ -180,10 +181,14 @@ v8::Local<v8::String> MainSource(Environment* env) {{
 }}
 
 void DefineJavaScript(Environment* env, v8::Local<v8::Object> target) {{
+// This is initializers = kunal
   {initializers}
 }}
 
 }}  // namespace node
+
+namespace {namespace} {{
+}}
 """
 
 ONE_BYTE_STRING = """
@@ -287,7 +292,8 @@ def JS2C(source, target, namespace):
   # Emit result
   output = open(str(target[0]), "w")
   output.write(TEMPLATE.format(definitions=''.join(definitions),
-                               initializers=''.join(initializers)))
+                               initializers=''.join(initializers),
+                               namespace=namespace))
   output.close()
 
 

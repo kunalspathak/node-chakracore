@@ -19,7 +19,7 @@
 // IN THE SOFTWARE.
 
 #include "v8chakra.h"
-#include "chakra_natives.h"
+//#include "chakra_natives.h"
 #include <algorithm>
 #include <memory>
 
