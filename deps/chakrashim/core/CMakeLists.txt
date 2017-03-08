@@ -111,8 +111,10 @@ function(clr_unknown_arch)
 endfunction()
 
 if(ICU_INCLUDE_PATH)
+    string(REPLACE "," "/../lib/ " ICU_CC_PATH ${ICU_INCLUDE_PATH})    
+    string(REPLACE "," ";" ICU_INCLUDE_PATH ${ICU_INCLUDE_PATH})
     add_definitions(-DHAS_REAL_ICU=1)
-    set(ICU_CC_PATH "${ICU_INCLUDE_PATH}/../lib/")
+    set(ICU_CC_PATH "${ICU_CC_PATH}/../lib/")
     find_library(ICUUC icuuc PATHS ${ICU_CC_PATH} NO_DEFAULT_PATH)
     find_library(ICU18 icui18n PATHS ${ICU_CC_PATH} NO_DEFAULT_PATH)
     if(ICUUC)
@@ -411,8 +413,12 @@ include_directories(
     pal
     pal/inc
     pal/inc/rt
-    ${ICU_INCLUDE_PATH}
     )
+
+
+foreach(ICU_PATH ${ICU_INCLUDE_PATH})
+  include_directories(${ICU_PATH})
+endforeach()
 
 if(ICU_INCLUDE_PATH)
     if(NOT HAVE_LIBICU_UCHAR_H)

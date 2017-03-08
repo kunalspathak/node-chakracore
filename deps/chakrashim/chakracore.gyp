@@ -7,7 +7,6 @@
     'msvs_windows_target_platform_version_prop': '',
     'icu_args%': '',
     'icu_include_path%': '',
-    'icu_lib_path%': '',
     'linker_start_group%': '',
     'linker_end_group%': '',
     'chakra_libs_absolute%': '',
@@ -24,8 +23,8 @@
           '/p:WindowsTargetPlatformVersion=$(WindowsTargetPlatformVersion)',
       }],
       ['OS=="mac"', {
-        'icu_lib_path': '/usr/local/opt/icu4c/lib', # todo: make icu path customizable
-        'icu_include_path': '/usr/local/opt/icu4c/include'
+        'icu_include_path': '../<(icu_path)/source/common,../<(icu_path)/source/i18n,../<(icu_path)/source/io'
+        ]
       }],
 
       # xplat (non-win32) only
@@ -43,6 +42,10 @@
       'toolsets': ['host'],
       'type': 'none',
 
+      'dependencies': [
+          '<(icu_gyp_path):icui18n',
+          '<(icu_gyp_path):icuuc',
+      ],
       'variables': {
         'chakracore_header': [
           '<(chakra_dir)/lib/Common/ChakraCoreVersion.h',
@@ -85,11 +88,7 @@
             ],
             'icu_args': '--icu=<(icu_include_path)',
             'linker_start_group': '-Wl,-force_load',
-            'linker_end_group': [
-              '<(icu_lib_path)/libicuuc.a',
-              '<(icu_lib_path)/libicui18n.a',
-              '<(icu_lib_path)/libicudata.a',
-            ],
+            'linker_end_group': '',
           }]
         ],
       },
