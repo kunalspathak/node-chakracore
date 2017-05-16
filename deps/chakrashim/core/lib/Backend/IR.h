@@ -278,7 +278,6 @@ public:
     static Instr*   FindSingleDefInstr(Js::OpCode opCode, Opnd* src);
 
     BranchInstr *   ChangeCmCCToBranchInstr(LabelInstr *targetInstr);
-
     static void     MoveRangeAfter(Instr * instrStart, Instr * instrLast, Instr * instrAfter);
     static IR::Instr * CloneRange(Instr * instrStart, Instr * instrLast, Instr * instrInsert, Lowerer *lowerer, JitArenaAllocator *alloc, bool (*fMapTest)(IR::Instr*), bool clonedInstrGetOrigArgSlot);
 
@@ -333,7 +332,10 @@ public:
     bool            IsCmCC_A();
     bool            IsCmCC_R8();
     bool            IsCmCC_I4();
+    bool            IsNeq();
     bool            BinaryCalculator(IntConstType src1Const, IntConstType src2Const, IntConstType *pResult);
+    template <typename T>     
+    bool            BinaryCalculatorT(T src1Const, T src2Const, int64 *pResult);
     bool            UnaryCalculator(IntConstType src1Const, IntConstType *pResult);
     IR::Instr*      GetNextArg();
 
@@ -430,7 +432,7 @@ public:
     bool       HasByteCodeArgOutCapture();
     void       GenerateArgOutSnapshot();
     IR::Instr* GetArgOutSnapshot();
-    JITTimeFixedField* GetFixedFunction() const;
+    FixedFieldInfo* GetFixedFunction() const;
     uint       GetArgOutCount(bool getInterpreterArgOutCount);
     IR::PropertySymOpnd *GetPropertySymOpnd() const;
     bool       CallsAccessor(IR::PropertySymOpnd* methodOpnd = nullptr);

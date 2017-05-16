@@ -102,6 +102,37 @@ namespace JsRTApiTest
         JsRTApiTest::RunWithAttributes(JsRTApiTest::ReferenceCountingTest);
     }
 
+    void WeakReferenceTest(JsRuntimeAttributes attributes, JsRuntimeHandle runtime)
+    {
+        JsValueRef valueRef = JS_INVALID_REFERENCE;
+        REQUIRE(JsCreateString("test", strlen("test"), &valueRef) == JsNoError);
+
+        JsWeakRef weakRef = JS_INVALID_REFERENCE;
+        REQUIRE(JsCreateWeakReference(valueRef, &weakRef) == JsNoError);
+
+        // JsGetWeakReferenceValue should return the original value reference.
+        JsValueRef valueRefFromWeakRef = JS_INVALID_REFERENCE;
+        CHECK(JsGetWeakReferenceValue(weakRef, &valueRefFromWeakRef) == JsNoError);
+        CHECK(valueRefFromWeakRef != JS_INVALID_REFERENCE);
+        CHECK(valueRefFromWeakRef == valueRef);
+
+        // Clear the references on the stack, so that the value will be GC'd.
+        valueRef = JS_INVALID_REFERENCE;
+        valueRefFromWeakRef = JS_INVALID_REFERENCE;
+
+        CHECK(JsCollectGarbage(runtime) == JsNoError);
+
+        // JsGetWeakReferenceValue should return an invalid reference after the value was GC'd.
+        JsValueRef valueRefAfterGC = JS_INVALID_REFERENCE;
+        CHECK(JsGetWeakReferenceValue(weakRef, &valueRefAfterGC) == JsNoError);
+        CHECK(valueRefAfterGC == JS_INVALID_REFERENCE);
+    }
+
+    TEST_CASE("ApiTest_WeakReferenceTest", "[ApiTest]")
+    {
+        JsRTApiTest::RunWithAttributes(JsRTApiTest::WeakReferenceTest);
+    }
+
     void ObjectsAndPropertiesTest1(JsRuntimeAttributes attributes, JsRuntimeHandle runtime)
     {
         JsValueRef object = JS_INVALID_REFERENCE;
@@ -1739,6 +1770,7 @@ namespace JsRTApiTest
         REQUIRE(JsInitializeModuleRecord(nullptr, specifier, &requestModule) == JsNoError);
         successTest.mainModule = requestModule;
         REQUIRE(JsSetModuleHostInfo(requestModule, JsModuleHostInfo_FetchImportedModuleCallback, Success_FIMC) == JsNoError);
+        REQUIRE(JsSetModuleHostInfo(requestModule, JsModuleHostInfo_FetchImportedModuleFromScriptCallback, Success_FIMC) == JsNoError);
         REQUIRE(JsSetModuleHostInfo(requestModule, JsModuleHostInfo_NotifyModuleReadyCallback, Succes_NMRC) == JsNoError);
 
         JsValueRef errorObject = JS_INVALID_REFERENCE;
@@ -1834,6 +1866,7 @@ namespace JsRTApiTest
         REQUIRE(JsInitializeModuleRecord(nullptr, specifier, &requestModule) == JsNoError);
         reentrantParseData.mainModule = requestModule;
         REQUIRE(JsSetModuleHostInfo(requestModule, JsModuleHostInfo_FetchImportedModuleCallback, ReentrantParse_FIMC) == JsNoError);
+        REQUIRE(JsSetModuleHostInfo(requestModule, JsModuleHostInfo_FetchImportedModuleFromScriptCallback, ReentrantParse_FIMC) == JsNoError);
         REQUIRE(JsSetModuleHostInfo(requestModule, JsModuleHostInfo_NotifyModuleReadyCallback, ReentrantParse_NMRC) == JsNoError);
 
         JsValueRef errorObject = JS_INVALID_REFERENCE;
@@ -1913,6 +1946,7 @@ namespace JsRTApiTest
         REQUIRE(JsInitializeModuleRecord(nullptr, specifier, &requestModule) == JsNoError);
         reentrantNoErrorParseData.mainModule = requestModule;
         REQUIRE(JsSetModuleHostInfo(requestModule, JsModuleHostInfo_FetchImportedModuleCallback, reentrantNoErrorParse_FIMC) == JsNoError);
+        REQUIRE(JsSetModuleHostInfo(requestModule, JsModuleHostInfo_FetchImportedModuleFromScriptCallback, reentrantNoErrorParse_FIMC) == JsNoError);
         REQUIRE(JsSetModuleHostInfo(requestModule, JsModuleHostInfo_NotifyModuleReadyCallback, reentrantNoErrorParse_NMRC) == JsNoError);
 
         JsValueRef errorObject = JS_INVALID_REFERENCE;

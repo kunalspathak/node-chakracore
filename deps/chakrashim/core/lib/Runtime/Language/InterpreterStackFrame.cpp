@@ -2844,7 +2844,7 @@ namespace Js
                 // don't want to generate code for APIs like changeHeap
                 if (functionObj->GetEntryPoint() == Js::AsmJsExternalEntryPoint)
                 {
-                    GenerateFunction(asmJsModuleFunctionBody->GetScriptContext()->GetNativeCodeGenerator(), functionObj->GetFunctionBody(), functionObj);
+                    WAsmJs::JitFunctionIfReady(functionObj);
                 }
             }
         }
@@ -2996,30 +2996,8 @@ namespace Js
     {
         FunctionBody *const functionBody = GetFunctionBody();
         ScriptFunction* func = GetJavascriptFunction();
-        //schedule for codegen here only if TJ is collected
-        if (!functionBody->GetIsAsmJsFullJitScheduled() && !PHASE_OFF(BackEndPhase, functionBody)
-            && !PHASE_OFF(FullJitPhase, functionBody) && !this->scriptContext->GetConfig()->IsNoNative())
-        {
-            int callCount = ++((FunctionEntryPointInfo*)func->GetEntryPointInfo())->callsCount;
-            bool doSchedule = false;
-            const int minAsmJsInterpretRunCount = (int)CONFIG_FLAG(MinAsmJsInterpreterRunCount);
-
-            if (callCount >= minAsmJsInterpretRunCount)
-            {
-                doSchedule = true;
-            }
-            if (doSchedule && !functionBody->GetIsAsmJsFullJitScheduled())
-            {
-#if ENABLE_NATIVE_CODEGEN
-                if (PHASE_TRACE1(AsmjsEntryPointInfoPhase))
-                {
-                    Output::Print(_u("Scheduling For Full JIT from Interpreter at callcount:%d\n"), callCount);
-                }
-                GenerateFunction(functionBody->GetScriptContext()->GetNativeCodeGenerator(), functionBody, func);
-#endif
-                functionBody->SetIsAsmJsFullJitScheduled(true);
-            }
-        }
+        uint32& callCount = ((FunctionEntryPointInfo*)func->GetEntryPointInfo())->callsCount;
+        WAsmJs::JitFunctionIfReady(func, ++callCount);
         AsmJsFunctionInfo* info = functionBody->GetAsmJsFunctionInfo();
 
         // The const table is copied after the FirstRegSlot
@@ -3053,7 +3031,7 @@ namespace Js
             {
                 Assert(typeInfo->constSrcByteOffset != Js::Constants::InvalidOffset);
                 uint constByteSize = typeInfo->constCount * WAsmJs::GetTypeByteSize(type);
-                memcpy_s(destination, constByteSize, source, constByteSize);
+                memmove_s(destination, constByteSize, source, constByteSize);
             }
         }
 
@@ -7577,6 +7555,11 @@ const byte * InterpreterStackFrame::OP_ProfiledLoopBodyStart(const byte * ip)
         return JavascriptOperators::OP_ScopedLdFuncObj(function, scriptContext);
     }
 
+    Var InterpreterStackFrame::OP_ImportCall(Var specifier, ScriptContext *scriptContext)
+    {
+        return JavascriptOperators::OP_ImportCall(function, specifier, scriptContext);
+    }
+
     void InterpreterStackFrame::ValidateRegValue(Var value, bool allowStackVar, bool allowStackVarOnDisabledStackNestedFunc) const
     {
 #if DBG
@@ -8482,7 +8465,7 @@ const byte * InterpreterStackFrame::OP_ProfiledLoopBodyStart(const byte * ip)
     void InterpreterStackFrame::OP_LdArrWasm(const unaligned T* playout)
     {
         Assert(playout->ViewType < Js::ArrayBufferView::TYPE_COUNT);
-        const uint64 index = (uint64)GetRegRawInt64(playout->SlotIndex);
+        const uint64 index = playout->Offset + (uint64)GetRegRawInt(playout->SlotIndex);
         JavascriptArrayBuffer* arr = *(JavascriptArrayBuffer**)GetNonVarReg(AsmJsFunctionMemory::ArrayBufferRegister);
         if (index + TypeToSizeMap[playout->ViewType] > arr->GetByteLength())
         {
@@ -8527,7 +8510,7 @@ const byte * InterpreterStackFrame::OP_ProfiledLoopBodyStart(const byte * ip)
     void InterpreterStackFrame::OP_StArrWasm(const unaligned T* playout)
     {
         Assert(playout->ViewType < Js::ArrayBufferView::TYPE_COUNT);
-        const uint64 index = (uint64)GetRegRawInt64(playout->SlotIndex);
+        const uint64 index = playout->Offset + (uint64)GetRegRawInt(playout->SlotIndex);
         JavascriptArrayBuffer* arr = *(JavascriptArrayBuffer**)GetNonVarReg(AsmJsFunctionMemory::ArrayBufferRegister);
         if (index + TypeToSizeMap[playout->ViewType] > arr->GetByteLength())
         {
@@ -8983,6 +8966,18 @@ const byte * InterpreterStackFrame::OP_ProfiledLoopBodyStart(const byte * ip)
     {
         AssertMsg(allocationToFree == previousAllocation, "Memory locations should match");
         AssertMsg(false, "This function should never actually be called");
+    }
+
+    void InterpreterStackFrame::OP_WasmPrintFunc(int regIndex)
+    {
+#if defined(ENABLE_DEBUG_CONFIG_OPTIONS) && defined(ENABLE_WASM)
+        Assert(m_functionBody->IsWasmFunction());
+        uint index = GetRegRawInt(regIndex);
+        Wasm::WasmFunctionInfo* info = m_functionBody->GetAsmJsFunctionInfo()->GetWebAssemblyModule()->GetWasmFunctionInfo(index);
+        Output::SkipToColumn(WAsmJs::Tracing::GetPrintCol());
+        info->GetBody()->DumpFullFunctionName();
+        Output::Print(_u("("));
+#endif
     }
 
     template void* Js::InterpreterStackFrame::GetReg<unsigned int>(unsigned int) const;

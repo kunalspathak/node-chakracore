@@ -734,6 +734,8 @@ MACRO_EXTEND_WMS(       LdHomeObjProto,     Reg2,           OpSideEffect)
 MACRO_EXTEND_WMS(       LdFuncObjProto,     Reg2,           OpSideEffect)
 MACRO_EXTEND_WMS(       SetHomeObj,         Reg2,           OpSideEffect)
 
+MACRO_EXTEND_WMS(       ImportCall,         Reg2,           OpSideEffect)
+
 MACRO_BACKEND_ONLY(     BrFncCachedScopeEq, Reg2,           None)
 MACRO_BACKEND_ONLY(     BrFncCachedScopeNeq,Reg2,           None)
 
@@ -751,8 +753,6 @@ MACRO_BACKEND_ONLY(     Nearest_A,          Empty,          OpTempNumberSources|
 MACRO_BACKEND_ONLY(     Unreachable_Void,   Empty,          OpSideEffect)
 MACRO_BACKEND_ONLY(     TrapIfMinIntOverNegOne, Reg3,       OpSideEffect)
 MACRO_BACKEND_ONLY(     TrapIfZero,         Reg3,           OpSideEffect)
-
-MACRO_BACKEND_ONLY(     AsmJsEntryTracing, Empty, None)
 
 // All SIMD ops are backend only for non-asmjs.
 #define MACRO_SIMD(opcode, asmjsLayout, opCodeAttrAsmJs, OpCodeAttr, ...) MACRO_BACKEND_ONLY(opcode, Empty, OpCodeAttr)

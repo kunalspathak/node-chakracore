@@ -133,6 +133,30 @@ extern "C" void* MarkerForExternalDebugStep();
                 }\
         }
 
+#define LEAVE_SCRIPT_IF(scriptContext, condition, block) \
+        if (condition) \
+        { \
+            BEGIN_LEAVE_SCRIPT(scriptContext); \
+            block \
+            END_LEAVE_SCRIPT(scriptContext); \
+        } \
+        else \
+        { \
+            block \
+        }
+
+#define ENTER_SCRIPT_IF(scriptContext, doCleanup, isCallRoot, hasCaller, condition, block) \
+        if (condition) \
+        { \
+            BEGIN_ENTER_SCRIPT(scriptContext, doCleanup, isCallRoot, hasCaller); \
+            block \
+            END_ENTER_SCRIPT(scriptContext, doCleanup, isCallRoot, hasCaller); \
+        } \
+        else \
+        { \
+            block \
+        }
+
 #define BEGIN_LEAVE_SCRIPT(scriptContext) \
         LEAVE_SCRIPT_START_EX(scriptContext, /* stackProbe */ true, /* leaveForHost */ true, /* isFPUControlRestoreNeeded */ false)
 
@@ -179,15 +203,6 @@ enum RecyclerCollectCallBackFlags
     Collect_Wait                     = 0x04     // callback can be from another thread
 };
 typedef void (__cdecl *RecyclerCollectCallBackFunction)(void * context, RecyclerCollectCallBackFlags flags);
-
-// Keep in sync with WellKnownType in scriptdirect.idl
-
-typedef enum WellKnownHostType
-{
-    WellKnownHostType_HTMLAllCollection     = 0,
-    WellKnownHostType_Last                  = WellKnownHostType_HTMLAllCollection,
-    WellKnownHostType_Invalid               = WellKnownHostType_Last+1
-} WellKnownHostType;
 
 #ifdef ENABLE_PROJECTION
 class ExternalWeakReferenceCache
@@ -802,8 +817,10 @@ private:
     THREAD_LOCAL static uint activeScriptSiteCount;
     bool isScriptActive;
 
-    // To synchronize with ETW rundown, which needs to walk scriptContext/functionBody/entryPoint lists.
-    CriticalSection csEtwRundown;
+    // When ETW rundown in background thread which needs to walk scriptContext/functionBody/entryPoint lists,
+    // or when JIT thread is getting auxPtrs from function body, we should not be modifying the list of 
+    // functionBody/entrypoints, or expanding the auxPtrs
+    CriticalSection csFunctionBody;
 
 #ifdef _M_X64
     friend class Js::Amd64StackFrame;
@@ -852,7 +869,7 @@ public:
     CustomHeap::InProcCodePageAllocators * GetCodePageAllocators() { return &codePageAllocators; }
 #endif // ENABLE_NATIVE_CODEGEN
 
-    CriticalSection* GetEtwRundownCriticalSection() { return &csEtwRundown; }
+    CriticalSection* GetFunctionBodyLock() { return &csFunctionBody; }
 
     Js::IsConcatSpreadableCache* GetIsConcatSpreadableCache() { return &isConcatSpreadableCache; }
 
@@ -996,9 +1013,15 @@ public:
     Js::TypeId GetNextTypeId() { return nextTypeId; }
 
     // Lookup the well known type registered with a Js::TypeId.
+    //  wellKnownType:  The well known type which we should register
     //  typeId:   The type id to match
-    //  returns:  The well known type which was previously registered via a call to SetWellKnownHostTypeId
-    WellKnownHostType GetWellKnownHostType(Js::TypeId typeId);
+    //  returns:  true if the typeid is the wellKnownType
+    template<WellKnownHostType wellKnownType>
+    bool IsWellKnownHostType(Js::TypeId typeId)
+    {
+        CompileAssert(wellKnownType <= WellKnownHostType_Last);
+        return wellKnownHostTypeIds[wellKnownType] == typeId;
+    }
 
     // Register a well known type to a Js::TypeId.
     //  wellKnownType:  The well known type which we should register
@@ -1367,15 +1390,16 @@ public:
     Js::JavascriptExceptionObject* GetUnhandledExceptionObject() const  { return recyclableData->unhandledExceptionObject; };
 
     // To temporarily keep throwing exception object alive (thrown but not yet caught)
-    Field(Js::JavascriptExceptionObject*)* SaveTempUncaughtException(Js::JavascriptExceptionObject* exceptionObject)
+    void SaveTempUncaughtException(Js::JavascriptExceptionObject* exceptionObject)
     {
-        // Previous save should have been caught and cleared
-        Assert(recyclableData->tempUncaughtException == nullptr);
-
-        recyclableData->tempUncaughtException = exceptionObject;
-        return &recyclableData->tempUncaughtException;
+        Js::JavascriptExceptionObject::Insert(&recyclableData->tempUncaughtException, exceptionObject);
+    }
+    void ClearTempUncaughtException(Js::JavascriptExceptionObject* exceptionObject)
+    {
+        Js::JavascriptExceptionObject::Remove(&recyclableData->tempUncaughtException, exceptionObject);
     }
 
+public:
     bool HasCatchHandler() const { return hasCatchHandler; }
     void SetHasCatchHandler(bool hasCatchHandler) { this->hasCatchHandler = hasCatchHandler; }
 
@@ -1578,6 +1602,7 @@ public:
     virtual void DisposeScriptContextByFaultInjectionCallBack() override;
 #endif
     virtual void DisposeObjects(Recycler * recycler) override;
+    virtual void PreDisposeObjectsCallBack() override;
 
     typedef DList<ExpirableObject*, ArenaAllocator> ExpirableObjectList;
     ExpirableObjectList* expirableObjectList;
@@ -1591,7 +1616,6 @@ public:
     void TryExitExpirableCollectMode();
     void RegisterExpirableObject(ExpirableObject* object);
     void UnregisterExpirableObject(ExpirableObject* object);
-    void DisposeExpirableObject(ExpirableObject* object);
 
     void * GetDynamicObjectEnumeratorCache(Js::DynamicType const * dynamicType);
     void AddDynamicObjectEnumeratorCache(Js::DynamicType const * dynamicType, void * cache);

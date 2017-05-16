@@ -38,7 +38,8 @@ typedef enum JsModuleHostInfoKind
     JsModuleHostInfo_Exception = 0x01,
     JsModuleHostInfo_HostDefined = 0x02,
     JsModuleHostInfo_NotifyModuleReadyCallback = 0x3,
-    JsModuleHostInfo_FetchImportedModuleCallback = 0x4
+    JsModuleHostInfo_FetchImportedModuleCallback = 0x4,
+    JsModuleHostInfo_FetchImportedModuleFromScriptCallback = 0x5
 } JsModuleHostInfoKind;
 
 /// <summary>
@@ -65,6 +66,21 @@ typedef JsErrorCode(CHAKRA_CALLBACK * FetchImportedModuleCallBack)(_In_ JsModule
 /// holds the exception. Otherwise the referencingModule is ready and the host should schedule execution afterwards.
 /// </remarks>
 /// <param name="referencingModule">The referencing module that have finished running ModuleDeclarationInstantiation step.</param>
+/// <param name="exceptionVar">If nullptr, the module is successfully initialized and host should queue the execution job
+///                           otherwise it's the exception object.</param>
+/// <returns>
+///     true if the operation succeeded, false otherwise.
+/// </returns>
+typedef JsErrorCode(CHAKRA_CALLBACK * FetchImportedModuleFromScriptCallBack)(_In_ JsSourceContext dwReferencingSourceContext, _In_ JsValueRef specifier, _Outptr_result_maybenull_ JsModuleRecord* dependentModuleRecord);
+
+/// <summary>
+///     User implemented callback to get notification when the module is ready.
+/// </summary>
+/// <remarks>
+/// Notify the host after ModuleDeclarationInstantiation step (15.2.1.1.6.4) is finished. If there was error in the process, exceptionVar
+/// holds the exception. Otherwise the referencingModule is ready and the host should schedule execution afterwards.
+/// </remarks>
+/// <param name="dwReferencingSourceContext">The referencing script that calls import()</param>
 /// <param name="exceptionVar">If nullptr, the module is successfully initialized and host should queue the execution job
 ///                           otherwise it's the exception object.</param>
 /// <returns>
@@ -508,9 +524,47 @@ CHAKRA_API
 ///     The code <c>JsNoError</c> if the operation succeeded, a failure code otherwise.
 /// </returns>
 CHAKRA_API
-JsCreatePromise(
-    _Out_ JsValueRef *promise,
-    _Out_ JsValueRef *resolveFunction,
-    _Out_ JsValueRef *rejectFunction);
+    JsCreatePromise(
+        _Out_ JsValueRef *promise,
+        _Out_ JsValueRef *resolveFunction,
+        _Out_ JsValueRef *rejectFunction);
+
+/// <summary>
+///     A weak reference to a JavaScript value.
+/// </summary>
+/// <remarks>
+///     A value with only weak references is available for garbage-collection. A strong reference
+///     to the value (<c>JsValueRef</c>) may be obtained from a weak reference if the value happens
+///     to still be available.
+/// </remarks>
+typedef JsRef JsWeakRef;
+
+/// <summary>
+///     Creates a weak reference to a value.
+/// </summary>
+/// <param name="value">The value to be referenced.</param>
+/// <param name="weakRef">Weak reference to the value.</param>
+/// <returns>
+///     The code <c>JsNoError</c> if the operation succeeded, a failure code otherwise.
+/// </returns>
+CHAKRA_API
+    JsCreateWeakReference(
+        _In_ JsValueRef value,
+        _Out_ JsWeakRef* weakRef);
+
+/// <summary>
+///     Gets a strong reference to the value referred to by a weak reference.
+/// </summary>
+/// <param name="weakRef">A weak reference.</param>
+/// <param name="value">Reference to the value, or <c>JS_INVALID_REFERENCE</c> if the value is
+///     no longer available.</param>
+/// <returns>
+///     The code <c>JsNoError</c> if the operation succeeded, a failure code otherwise.
+/// </returns>
+CHAKRA_API
+    JsGetWeakReferenceValue(
+        _In_ JsWeakRef weakRef,
+        _Out_ JsValueRef* value);
+
 #endif // CHAKRACOREBUILD_
 #endif // _CHAKRACORE_H_

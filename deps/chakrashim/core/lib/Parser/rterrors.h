@@ -112,7 +112,7 @@ RT_ERROR_MSG(JSERR_NeedString, 5005, "'%s' is not a string", "String expected", 
 RT_ERROR_MSG(JSERR_NeedDate, 5006, "'%s' is not a date object", "Date object expected", kjstTypeError, 0)
 RT_ERROR_MSG(JSERR_NeedObject, 5007, "'%s' is null or not an object", "Object expected", kjstTypeError, 0)
 RT_ERROR_MSG(JSERR_CantAssignTo, 5008, "", "Invalid left-hand side in assignment", kjstReferenceError, 0)
-RT_ERROR_MSG(JSERR_UndefVariable, 5009, "'%s' is undefined", "Undefined identifier", kjstTypeError, 0)
+RT_ERROR_MSG(JSERR_UndefVariable, 5009, "'%s' is not defined", "Undefined identifier", kjstTypeError, 0)
 RT_ERROR_MSG(JSERR_NeedBoolean, 5010, "'%s' is not a boolean", "Boolean expected", kjstTypeError, 0)
 
 // This is the legacy error code for JScript.
@@ -364,6 +364,7 @@ RT_ERROR_MSG(JSERR_CannotSuspendBuffer, 5665, "", "Current agent cannot be suspe
 RT_ERROR_MSG(JSERR_CantDeleteNonConfigProp, 5666, "Cannot delete non-configurable property '%s'", "Cannot delete non-configurable property", kjstTypeError, 0)
 RT_ERROR_MSG(JSERR_CantRedefineProp, 5667, "Cannot redefine property '%s'", "Cannot redefine property", kjstTypeError, 0)
 RT_ERROR_MSG(JSERR_FunctionArgument_NeedArrayLike, 5668, "%s: argument is not an array or array-like object", "Array or array-like object expected", kjstTypeError, 0)
+RT_ERROR_MSG(JSERR_FatalMemoryExhaustion, 5669, "", "Encountered a non-recoverable OOM", kjstError, 0)
 
 // WebAssembly Errors
 RT_ERROR_MSG(WASMERR_WasmCompileError, 7000, "%s", "Compilation failed.", kjstWebAssemblyCompileError, 0)
@@ -387,3 +388,9 @@ RT_ERROR_MSG(WASMERR_ArrayIndexOutOfRange, 7017, "", "Memory index is out of ran
 RT_ERROR_MSG(WASMERR_InvalidInstantiateArgument, 7018, "", "Invalid arguments to instantiate", kjstTypeError, 0)
 RT_ERROR_MSG(WASMERR_WasmLinkError, 7019, "%s", "Linking failed.", kjstWebAssemblyLinkError, 0)
 RT_ERROR_MSG(JSERR_OutOfBoundString, 7020, "", "String length is out of bound", kjstRangeError, 0)
+RT_ERROR_MSG(JSERR_InvalidIterableObject, 7021, "%s : Invalid iterable object", "Invalid iterable object", kjstTypeError, 0)
+RT_ERROR_MSG(JSERR_InvalidIteratorObject, 7022, "%s : Invalid iterator object", "Invalid iterator object", kjstTypeError, 0)
+RT_ERROR_MSG(WASMERR_NeedResponse, 7023, "%s is not a Reponse", "Response expected", kjstTypeError, 0)
+
+// Wabt Errors
+RT_ERROR_MSG(WABTERR_WabtError, 7200, "%s", "Wabt Error.", kjstTypeError, 0)

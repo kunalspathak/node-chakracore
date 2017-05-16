@@ -301,7 +301,7 @@ BackwardPass::MarkScopeObjSymUseForStackArgOpt()
     IR::Instr * instr = this->currentInstr;
     if (tag == Js::DeadStorePhase)
     {
-        if (instr->DoStackArgsOpt(this->func) && instr->m_func->GetScopeObjSym() != nullptr)
+        if (instr->DoStackArgsOpt(this->func) && instr->m_func->GetScopeObjSym() != nullptr && this->DoByteCodeUpwardExposedUsed())
         {
             if (this->currentBlock->byteCodeUpwardExposedUsed == nullptr)
             {
@@ -4406,7 +4406,7 @@ BackwardPass::TrackObjTypeSpecProperties(IR::PropertySymOpnd *opnd, BasicBlock *
 #if DBG
         FOREACH_BITSET_IN_SPARSEBV(propOpId, guardedPropertyOps)
         {
-            JITObjTypeSpecFldInfo* existingFldInfo = this->func->GetGlobalObjTypeSpecFldInfo(propOpId);
+            ObjTypeSpecFldInfo* existingFldInfo = this->func->GetGlobalObjTypeSpecFldInfo(propOpId);
             Assert(existingFldInfo != nullptr);
 
             if (existingFldInfo->GetPropertyId() != opnd->GetPropertyId())
@@ -6926,7 +6926,7 @@ BackwardPass::ProcessInlineeStart(IR::Instr* inlineeStart)
                 func->GetJITFunctionBody()->GetDisplayName(), func->GetJITFunctionBody()->GetFunctionNumber(),
                 inlineeStart->m_func->GetJITFunctionBody()->GetDisplayName(), inlineeStart->m_func->GetJITFunctionBody()->GetFunctionNumber(),
                 IsTrueOrFalse(inlineeStart->m_func->GetHasCalls()),
-                IsTrueOrFalse(inlineeStart->m_func->GetHasUnoptimizedArgumentsAcccess()),
+                IsTrueOrFalse(inlineeStart->m_func->GetHasUnoptimizedArgumentsAccess()),
                 IsTrueOrFalse(inlineeStart->m_func->m_canDoInlineArgsOpt));
         return false;
     }
@@ -6946,7 +6946,7 @@ BackwardPass::ProcessInlineeStart(IR::Instr* inlineeStart)
         if (i == Js::Constants::InlineeMetaArgIndex_ArgumentsObject &&
             inlineeStart->m_func->GetJITFunctionBody()->UsesArgumentsObject())
         {
-            Assert(!inlineeStart->m_func->GetHasUnoptimizedArgumentsAcccess());
+            Assert(!inlineeStart->m_func->GetHasUnoptimizedArgumentsAccess());
             // Do not remove arguments object meta arg if there is a reference to arguments object
         }
         else
