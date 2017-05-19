@@ -693,11 +693,6 @@ class Global : public PersistentBase<T> {
     other._weakWrapper = nullptr;
   }
 
-  template <class S>
-  static Global<S> New(Isolate* isolate, Local<S> that) {
-    return Global<S>(isolate, that);
-  }
-
   V8_INLINE ~Global() { this->Reset(); }
 
   template <class S>
@@ -997,6 +992,11 @@ class V8_EXPORT StackFrame {
   bool IsConstructor() const;
 };
 
+enum class PromiseHookType { kInit, kResolve, kBefore, kAfter };
+
+typedef void(*PromiseHook)(PromiseHookType type, Local<Promise> promise, Local<Value> parent);
+
+
 class V8_EXPORT Value : public Data {
  public:
   bool IsUndefined() const;
@@ -1021,6 +1021,7 @@ class V8_EXPORT Value : public Data {
   bool IsSymbolObject() const;
   bool IsNativeError() const;
   bool IsRegExp() const;
+  bool IsAsyncFunction() const;
   bool IsGeneratorObject() const;
   bool IsExternal() const;
   bool IsArrayBuffer() const;
@@ -1815,10 +1816,16 @@ class V8_EXPORT Promise : public Object {
 
   class V8_EXPORT Resolver : public Object {
    public:
-    static Local<Resolver> New(Isolate* isolate);
+    static V8_DEPRECATE_SOON("Use maybe version",
+      Local<Resolver> New(Isolate* isolate));
+    static V8_WARN_UNUSED_RESULT MaybeLocal<Resolver> New(
+      Local<Context> context);
     Local<Promise> GetPromise();
-    void Resolve(Handle<Value> value);
-    void Reject(Handle<Value> value);
+    V8_DEPRECATE_SOON("Use maybe version", void Resolve(Local<Value> value));
+    Maybe<bool> Resolve(Local<Context> context, Local<Value> value);
+
+    V8_DEPRECATE_SOON("Use maybe version", void Reject(Local<Value> value));
+    Maybe<bool> Reject(Local<Context> context, Local<Value> value);
     static Resolver* Cast(Value* obj);
    private:
     Resolver();
@@ -2555,6 +2562,7 @@ class V8_EXPORT Isolate {
   static uint32_t GetNumberOfDataSlots();
   bool InContext();
   Local<Context> GetCurrentContext();
+  void SetPromiseHook(PromiseHook hook);
   void SetPromiseRejectCallback(PromiseRejectCallback callback);
   void RunMicrotasks();
   void SetAutorunMicrotasks(bool autorun);
@@ -2719,6 +2727,7 @@ class V8_EXPORT TryCatch {
   Local<v8::Message> Message() const;
   void Reset();
   void SetVerbose(bool value);
+  bool IsVerbose() const;
   void SetCaptureMessage(bool value);
 
  private:

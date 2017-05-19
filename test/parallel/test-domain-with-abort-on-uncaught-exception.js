@@ -27,8 +27,8 @@ const fs = require('fs');
  */
 
 if (common.isChakraEngine) {
-  console.log(`1..0 # Skipped: This test is disabled for chakra engine
-    because it depends on v8-option --abort-on-uncaught-exception`);
+  common.skip('This test is disabled for chakra engine because it depends ' +
+              'on v8-option --abort-on-uncaught-exception');
   return;
 }
 
@@ -49,11 +49,11 @@ if (process.argv[2] === 'child') {
   d.on('error', function(err) {
     // Swallowing the error on purpose if 'throwInDomainErrHandler' is not
     // set
-    if (process.argv.indexOf('throwInDomainErrHandler') !== -1) {
+    if (process.argv.includes('throwInDomainErrHandler')) {
       // If useTryCatch is set, wrap the throw in a try/catch block.
       // This is to make sure that a caught exception does not trigger
       // an abort.
-      if (process.argv.indexOf('useTryCatch') !== -1) {
+      if (process.argv.includes('useTryCatch')) {
         try {
           throw new Error(domainErrHandlerExMessage);
         } catch (e) {
@@ -109,14 +109,8 @@ if (process.argv[2] === 'child') {
     if (options.useTryCatch)
       useTryCatchOpt = 'useTryCatch';
 
-    cmdToExec += process.argv[0] + ' ';
-    cmdToExec += (cmdLineOption ? cmdLineOption : '') + ' ';
-    cmdToExec += process.argv[1] + ' ';
-    cmdToExec += [
-      'child',
-      throwInDomainErrHandlerOpt,
-      useTryCatchOpt
-    ].join(' ');
+    cmdToExec += `"${process.argv[0]}" ${cmdLineOption ? cmdLineOption : ''} "${
+      process.argv[1]}" child ${throwInDomainErrHandlerOpt} ${useTryCatchOpt}`;
 
     const child = exec(cmdToExec);
 
